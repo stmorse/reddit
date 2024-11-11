@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: encoder
+spec:
+  securityContext:
+    runAsUser: 270999
+    runAsGroup: 1132
+  containers:
+    - name: encoder-pod
+      image: docker.io/stmorse314/transformers-torch:latest
+      resources:
+        requests:
+          memory: '16Gi'
+          nvidia.com/gpu: '1'
+        limits:
+          memory: '16Gi'
+          nvidia.com/gpu: '1'
+      command: ['/bin/sh', '-c', 'sleep infinity']
+      volumeMounts:
+        - name: home
+          mountPath: /home
+        - name: data
+          mountPath: /data
+        - name: results
+          mountPath: /results
+  volumes:
+    - name: home
+      nfs:
+        server: 128.239.56.166
+        path: /sciclone/home/stmorse/projects/reddit
+    - name: data
+      nfs:
+        server: 128.239.56.166
+        path: /sciclone/data10/twford/reddit/reddit
+    - name: results
+      nfs:
+        server: 128.239.59.144
+        path: /sciclone/geograd/stmorse/reddit/test

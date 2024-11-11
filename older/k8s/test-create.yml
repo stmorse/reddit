@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hf
+spec:
+  securityContext:
+    runAsUser: 270999
+    runAsGroup: 1132
+  containers:
+    - name: hf-pod
+      # image: 'huggingface/transformers-pytorch-gpu:latest'
+      image: docker.io/stmorse314/transformers-torch:latest
+      resources:
+        requests:
+          memory: '16Gi'
+          nvidia.com/gpu: '1'
+        limits:
+          memory: '16Gi'
+          nvidia.com/gpu: '1'
+      command: ['/bin/sh', '-c', 'sleep infinity']
+      env:
+        - name: HF_HOME
+          value: '/home/projects/reddit/tmp'
+      volumeMounts:
+        - name: home
+          mountPath: /home
+  volumes:
+    - name: home
+      nfs:
+        server: 128.239.56.166
+        path: /sciclone/home/stmorse
