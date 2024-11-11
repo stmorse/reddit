@@ -12,8 +12,13 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
 
-LOAD_PATH = '/data/'
-SAVE_PATH = '/results/'
+# for K8S
+# LOAD_PATH = '/data/'
+# SAVE_PATH = '/results/'
+
+# for SLURM
+LOAD_PATH = '/sciclone/data10/twford/reddit/reddit/'
+SAVE_PATH = '/sciclone/geograd/stmorse/reddit/test/'
 
 # load data
 def load_sentences_bz2(filename):
@@ -45,7 +50,7 @@ if __name__=='__main__':
 
         # load this month comments and users
         print(f'> Loading users and comments... ({time.time()-t0:.2f})')
-        file_path = f'{LOAD_PATH}RC_{year}-{month}.bz2'
+        file_path = f'{LOAD_PATH}comments/RC_{year}-{month}.bz2'
         sentences = []  # will store all comment bodies
         for sentence in load_sentences_bz2(file_path):
             sentences.append(sentence)
