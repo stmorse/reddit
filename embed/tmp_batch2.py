@@ -18,9 +18,9 @@ SAVE_PATH = '/sciclone/geograd/stmorse/reddit/'
 BATCH_SIZE = 2000000  # approx 250 Mb (?)
 SHOW_PROGRESS = False
 
-YEARS = [2010]
+YEARS = [2011]
 MONTHS = ['02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-# MONTHS = ['01']
+#MONTHS = ['01']
 
 def main():
     t0 = time.time()

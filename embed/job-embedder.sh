@@ -1,7 +1,7 @@
 #!/bin/tcsh
 #SBATCH --job-name=sbert
 #SBATCH -N 1 -n 1
-#SBATCH -t 60:00
+#SBATCH -t 06:00:00
 #SBATCH --gpus=1
 
 # load and activate conda
@@ -12,7 +12,7 @@ conda activate torch-tik-env
 cd ~/projects/reddit/embed
 
 # run the script in this directory and save outputs to file
-python -u embedder.py > out.log
+python -u batch_embedder.py > out.log
 
 # print something to shell as confirmation
 echo "Complete"

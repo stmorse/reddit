@@ -16,24 +16,34 @@ spec:
         limits:
           memory: '16Gi'
           nvidia.com/gpu: '1'
-      command: ['/bin/sh', '-c', 'sleep infinity']
+      command: ['/bin/sh']
+      args:
+        - '-c'
+        - |
+          echo "Running container..."
+          cd /sciclone/home/stmorse/projects/reddit/embed
+          python -u tmp_batch2.py > out2.log
+          sleep infinity
+      env:
+        - name: HF_HOME
+          value: '/sciclone/home/stmorse/.cache/huggingface/hub'
       volumeMounts:
         - name: home
-          mountPath: /home
+          mountPath: /sciclone/home/stmorse
         - name: data
-          mountPath: /data
+          mountPath: /sciclone/data10/twford/reddit/reddit
         - name: results
-          mountPath: /results
+          mountPath: /sciclone/geograd/stmorse
   volumes:
     - name: home
       nfs:
         server: 128.239.56.166
-        path: /sciclone/home/stmorse/projects/reddit
+        path: /sciclone/home/stmorse
     - name: data
       nfs:
-        server: 128.239.56.166
+        server: 128.239.56.30
         path: /sciclone/data10/twford/reddit/reddit
     - name: results
       nfs:
         server: 128.239.59.144
-        path: /sciclone/geograd/stmorse/reddit/test
+        path: /sciclone/geograd/stmorse
