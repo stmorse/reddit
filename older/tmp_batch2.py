@@ -15,12 +15,13 @@ from sentence_transformers import SentenceTransformer
 
 LOAD_PATH = '/sciclone/data10/twford/reddit/reddit/comments/'
 SAVE_PATH = '/sciclone/geograd/stmorse/reddit/'
-BATCH_SIZE = 2000000  # approx 250 Mb (?)
-SHOW_PROGRESS = False
+BATCH_SIZE = 1000000  # approx 125-250 Mb (?)
+SHOW_PROGRESS = True
 
-YEARS = [2011]
-MONTHS = ['02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-#MONTHS = ['01']
+# YEARS = [2011]
+# MONTHS = ['06', '07', '08', '09', '10', '11', '12']
+YEARS = [2008]
+MONTHS = ['01']
 
 def main():
     t0 = time.time()
@@ -29,7 +30,11 @@ def main():
 
     model = SentenceTransformer('all-MiniLM-L6-v1',
                                 device='cuda',
-                                model_kwargs={'torch_dtype': 'float16'})    
+                                model_kwargs={'torch_dtype': 'float16'})  
+
+    print(f'Starting multiprocessing pool ... ({time.time()-t0:.2f})')  
+
+    pool = model.start_multi_process_pool()
     
     for year, month in [(yr, mo) for yr in YEARS for mo in MONTHS]:
         print(f'Processing {year}-{month} ... ({time.time()-t0:.2f})')
@@ -55,7 +60,12 @@ def main():
                 if 'body' not in entry or entry['author'] == '[deleted]':
                     continue
                 
-                batch.append(entry['body'])
+                # quick and dirty to keep entries closer to SBERT token limit (256)
+                body = entry['body']
+                # if len(body) > 2000:
+                #     body = body[:2000]
+
+                batch.append(body)
 
                 # continue building metadata
                 df.append([k, entry['author'], entry['id'], entry['created_utc']])
@@ -66,11 +76,13 @@ def main():
 
                     # encode the batch of sentences on the GPU
                     # then move them back to CPU and conver to ndarray
-                    batch_embeddings = (model.encode(
-                        batch, show_progress_bar=SHOW_PROGRESS, convert_to_tensor=True)
-                        .cpu()
-                        .numpy()
-                    )
+                    # batch_embeddings = (model.encode(
+                    #     batch, show_progress_bar=SHOW_PROGRESS, convert_to_tensor=True)
+                    #     .cpu()
+                    #     .numpy()
+                    # )
+                    batch_embeddings = model.encode_multi_process(
+                        batch, pool, show_progress_bar=SHOW_PROGRESS)
                     embeddings.append(batch_embeddings)
                     
                     batch = []  # Clear batch after processing
@@ -79,11 +91,13 @@ def main():
             # Process any remaining sentences in the final batch
             if len(batch) > 0:
                 print(f'> Leftovers ... ({time.time()-t0:.2f})')
-                batch_embeddings = (model.encode(
-                    batch, show_progress_bar=SHOW_PROGRESS, convert_to_tensor=True)
-                    .cpu()
-                    .numpy()
-                )
+                # batch_embeddings = (model.encode(
+                #     batch, show_progress_bar=SHOW_PROGRESS, convert_to_tensor=True)
+                #     .cpu()
+                #     .numpy()
+                # )
+                batch_embeddings = model.encode_multi_process(
+                        batch, pool, show_progress_bar=SHOW_PROGRESS)
                 embeddings.append(batch_embeddings)
                 batch = []
                 k += 1
@@ -94,18 +108,21 @@ def main():
         # Save the embeddings to disk
         print(f'> Total lines: {j}  Total embeddings: {len(embeddings)}  Total batches: {k}')
         print(f'> Saving to disk ... ({time.time()-t0:.2f})')
-        with open(f'{SAVE_PATH}embeddings/embeddings_{year}-{month}.npz', 'wb') as f:
+        with open(f'{SAVE_PATH}test/embeddings_{year}-{month}_3.npz', 'wb') as f:
             np.savez_compressed(f, embeddings=embeddings, allow_pickle=False)
 
         # save metadata to disk
-        print(f'> Saving metadata to disk ... ({time.time()-t0:.2f})')
-        with open(f'{SAVE_PATH}metadata/metadata_{year}-{month}.pkl', 'wb') as f:
-            pickle.dump(df, f)
+        # print(f'> Saving metadata to disk ... ({time.time()-t0:.2f})')
+        # with open(f'{SAVE_PATH}metadata/metadata_{year}-{month}.pkl', 'wb') as f:
+        #     pickle.dump(df, f)
 
         print(f'> Garbage collection ... ({time.time()-t0:.2f})')
         del embeddings
         del df
         gc.collect()
+
+    print(f'Stopping multiprocess pool ...')
+    model.stop_multi_process_pool(pool)
 
     print('\nCOMPLETE.\n\n')
 

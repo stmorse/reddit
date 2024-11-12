@@ -12,17 +12,17 @@ spec:
       resources:
         requests:
           memory: '16Gi'
-          nvidia.com/gpu: '1'
+          nvidia.com/gpu: '2'
         limits:
           memory: '16Gi'
-          nvidia.com/gpu: '1'
+          nvidia.com/gpu: '2'
       command: ['/bin/sh']
       args:
         - '-c'
         - |
           echo "Running container..."
           cd /sciclone/home/stmorse/projects/reddit/embed
-          python -u tmp_batch2.py > out2.log
+          python -u mp_embedder.py > out.log
           sleep infinity
       env:
         - name: HF_HOME

@@ -19,8 +19,7 @@ BATCH_SIZE = 2000000  # approx 250 Mb (?)
 SHOW_PROGRESS = False
 
 YEARS = [2010]
-MONTHS = ['02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-# MONTHS = ['01']
+MONTHS = ['07', '08', '09', '10', '11', '12']
 
 def main():
     t0 = time.time()
@@ -55,7 +54,12 @@ def main():
                 if 'body' not in entry or entry['author'] == '[deleted]':
                     continue
                 
-                batch.append(entry['body'])
+                # quick and dirty to keep entries closer to SBERT token limit (256)
+                body = entry['body']
+                if len(body) > 2000:
+                    body = body[:2000]
+
+                batch.append(body)
 
                 # continue building metadata
                 df.append([k, entry['author'], entry['id'], entry['created_utc']])

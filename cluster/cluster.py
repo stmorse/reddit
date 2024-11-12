@@ -1,91 +1,57 @@
 """
-Input date range
-Output cluster model
+Train KMeans distributed
 """
 
-import gc
-import time
+import argparse
 
 import numpy as np
-import torch
+from dask.distributed import Client
+# from dask_ml.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
-from joblib import dump
 
-LOAD_PATH = '/sciclone/data10/twford/reddit/reddit/'
-SAVE_PATH = '/sciclone/geograd/stmorse/reddit/'
-
-# load data
-def load_embeddings(year, month):
-    filename = f'embeddings_{year}-{month}.npz'
+def load_embeddings(path, year, month):
+    filename = f'{path}embeddings_{year}-{month}.npz'
     
-    try:
-        with open(SAVE_PATH + 'embeddings/' + filename, 'rb') as f:
-            embeddings = np.load(f)['embeddings']
-            f.close()
-            return embeddings
-    except FileNotFoundError:
-        print(f'Error: {filename} not found')
+    with open(filename, 'rb') as f:
+        embeddings = np.load(f)['embeddings']
+        return embeddings
+    
+def main(args):
+    # Connect to Dask cluster
+    client = Client()
+    print(client)
+
+    # Initialize MiniBatchKMeans
+    kmeans = MiniBatchKMeans(n_clusters=args.n_clusters, batch_size=args.batch_size)
+    
+    # List all data files to process
+    files = [os.path.join(args.load_filepath, f) for f in os.listdir(args.load_filepath) if f.endswith('.npy')]
+
+    for file_path in files:
+        # Load data in chunks to avoid memory overload
+        data = da.from_array(np.load(file_path), chunks=(args.batch_size, 312))
+        
+        # Incrementally fit the model with each chunk
+        for i in range(0, data.shape[0], args.batch_size):
+            batch = data[i:i + args.batch_size].compute()  # Load and process batch
+            kmeans.partial_fit(batch)
+            print(f"Processed batch {i // args.batch_size + 1} from {file_path}")
+
+
+    # Save labels
+    labels = kmeans.labels_
+    with open(args.save_filepath, 'wb') as f:
+        np.save(f, labels)
+
+    client.close()
 
 if __name__=='__main__':
-    print(f'GPU enabled? {torch.cuda.is_available()}')
+    parser = argparse.ArgumentParser(description="Distributed KMeans with Dask")
+    parser.add_argument('--start_year', type=int, required=True, help="Start year")
+    parser.add_argument('--end_year', type=int, required=True, help="End year (inclusive)")
+    parser.add_argument('--n_clusters', type=int, default=10, help="Number k-means clusters")
+    parser.add_argument('--load_filepath', type=str, required=True, help="Path to data")
+    parser.add_argument('--save_filepath', type=str, required=True, help="Path to save labels")
 
-    cluster_model = MiniBatchKMeans(n_clusters=15)
-    
-    years = [2007, 2008, 2009]
-    months = ['01', '02', '03', '04', '05', '06', 
-              '07', '08', '09', '10', '11', '12']
-    
-    t0 = time.time()
-    for year in years:
-        for month in months:
-            print(f'\nProcessing {year}-{month}... ({time.time()-t0:.2f})')
-
-            # load this month comments
-            print(f'> Loading comments... ({time.time()-t0:.2f})')
-            embeddings = load_embeddings(year, month)
-
-            # fit model
-            print(f'> Partial fit ({len(embeddings)})... ({time.time()-t0:.2f})')
-            cluster_model.partial_fit(embeddings)
-
-            # clear memory
-            print(f'> Garbage collection... ({time.time()-t0:.2f})')
-            del embeddings
-            gc.collect()
-
-    print('\n\n---\nTRAINING COMPLETE.')
-
-    print('SAVING MODEL...')
-    with open(f'{SAVE_PATH}cm_mbkm_20241108.joblib', 'wb') as f:
-        fname = dump(cluster_model, f, compress=3)
-        print(f'> Saved to: {fname}')
-
-    print('PREDICTING LABELS.\n---\n')
-    
-    # model is fit to all batches
-    # now cycle back through data and predict labels
-    for year in years:
-        for month in months:
-            print(f'\nProcessing {year}-{month}... ({time.time()-t0:.2f})')
-
-            # load comments again
-            print(f'> Loading comments... ({time.time()-t0:.2f})')
-            embeddings = load_embeddings(year, month)
-
-            # predict labels
-            print(f'> Predicting labels ({len(embeddings)})... ({time.time()-t0:.2f})')
-            labels = cluster_model.predict(embeddings)
-
-            # save labels
-            print(f'> Saving labels... ({time.time()-t0:.2f})')
-            with open(f'{SAVE_PATH}labels/labels_{year}-{month}.npz', 'wb') as f:
-                np.savez_compressed(f, labels=labels, allow_pickle=False)
-
-            # clear memory
-            print(f'> Garbage collection... ({time.time()-t0:.2f})')
-            del embeddings
-            del labels
-            gc.collect()
-
-    print(f'COMPLETE. ({time.time()-t0:.2f})  Exiting...\n')
-    
+    args = parser.parse_args()
+    main(args)
