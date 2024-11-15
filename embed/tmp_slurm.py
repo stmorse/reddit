@@ -21,10 +21,10 @@ BATCH_SIZE = 1000000  # approx 125-250 Mb (?)
 SHOW_PROGRESS = False
 HF_MODEL = 'all-MiniLM-L6-v2'
 
-YEARS = [2014]
-MONTHS = [f'{m:02}' for m in range(3,13)]
+YEARS = [2015]
+# MONTHS = [f'{m:02}' for m in range(1,13)]
 # YEARS = [2008]
-# MONTHS = ['08', '09', '10', '11', '12']
+MONTHS = ['06', '07', '08', '09', '10', '11', '12']
 
 def main():
     t0 = time.time()

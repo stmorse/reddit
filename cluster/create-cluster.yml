@@ -22,7 +22,7 @@ spec:
         - |
           echo "Running container..."
           cd /sciclone/home/stmorse/projects/reddit/cluster
-          python sk_cluster.py > c_out.log
+          # python sk_cluster.py > c_out.log
           sleep infinity
       volumeMounts:
         - name: home

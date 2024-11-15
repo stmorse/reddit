@@ -1,7 +1,4 @@
-"""
-Train KMeans distributed
-"""
-
+import argparse
 import gc
 import time
 
@@ -10,23 +7,10 @@ from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import davies_bouldin_score
 import joblib
 
-MODEL_PATH = '/sciclone/geograd/stmorse/reddit/td/'
-EMBED_PATH = '/sciclone/geograd/stmorse/reddit/embeddings/'
-CHUNK_SIZE = 1000000  # approx 125-250 Mb (?)
-BATCH_SIZE = 256 * joblib.cpu_count()   # for partial_fit this may not do anything
-LOAD_MODEL = None
-N_CLUSTERS = 20
-N_SAMPLES  = 300000  # for score function, do over 3 random samples of this size
-DO_SCORING = False
+def main(args):
+    LOAD_MODEL = args.load_model_path
+    
 
-SAVE_MODEL = f'mbkm_{N_CLUSTERS}_2011_td'
-
-YEARS = [2011]
-MONTHS = [f'{m:02}' for m in range(1,13)]
-# YEARS = [2009]
-# MONTHS = ['07']
-
-def main():
     print(f'Starting train.  CPU: {joblib.cpu_count()}')
 
     t0 = time.time()
@@ -70,25 +54,25 @@ def main():
 
             # give a sense of score in this month
             # this won't necessarily converge but should generally go down (?)
-            if DO_SCORING:
-                print(f'> Scoring: ... ({time.time()-t0:.2f})')
-                for k in range(3):
-                    idx = np.random.choice(L, size=min(N_SAMPLES, L), replace=False)
-                    labels = model.predict(embeddings[idx])
-                    score = davies_bouldin_score(embeddings[idx], labels)
-                    print(f'> Iter {k}: {score}')
+            print(f'> Scoring: ... ({time.time()-t0:.2f})')
+            for k in range(3):
+                idx = np.random.choice(L, size=min(N_SAMPLES, L), replace=False)
+                labels = model.predict(embeddings[idx])
+                score = davies_bouldin_score(embeddings[idx], labels)
+                print(f'> Iter {k}: {score}')
     
-    # Save trained model checkpoint
-    print(f'> Saving model ... ({time.time()-t0:.2f})')
-    with open(f'{MODEL_PATH}{SAVE_MODEL}.joblib', 'wb') as f:
-        joblib.dump(model, f, compress=0)
-
-    # this in case of compatibility issues between sklearn/joblib versions
-    print(f'Saving final model cluster centers ...')
-    with open(f'{MODEL_PATH}{SAVE_MODEL}_cc.npz', 'wb') as f:
-        np.savez_compressed(f, cc=model.cluster_centers_, allow_pickle=False)
-
-    print(f'COMPLETE')
+        # Save partially trained model checkpoint
+        print(f'> Saving checkpoint ... ({time.time()-t0:.2f})')
+        with open(f'{MODEL_PATH}{SAVE_MODEL}_ckpt.joblib', 'wb') as f:
+            joblib.dump(model, f, compress=0)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--start_year", type=int, required=True)
+    parser.add_argument("--end_year", type=int, required=True)
+    parser.add_argument("--start_month", type=int, required=True)
+    parser.add_argument("--end_month", type=int, required=True)
+    parser.add_argument("--filepath", type=str, required=True)
+    args = parser.parse_args()
+
+    main(args)

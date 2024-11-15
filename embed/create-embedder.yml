@@ -1,20 +1,20 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: encoder
+  name: encoder2
 spec:
   securityContext:
     runAsUser: 270999
     runAsGroup: 1132
   containers:
-    - name: encoder-pod
+    - name: encoder2-pod
       image: docker.io/stmorse314/transformers-torch:latest
       resources:
         requests:
-          memory: '64Gi'
+          memory: '128Gi'
           nvidia.com/gpu: '2'
         limits:
-          memory: '64Gi'
+          memory: '128Gi'
           nvidia.com/gpu: '2'
       command: ['/bin/sh']
       args:
@@ -22,7 +22,8 @@ spec:
         - |
           echo "Running container..."
           cd /sciclone/home/stmorse/projects/reddit/embed
-          python -u mp_embedder.py > out.log
+          # python -u mp_embedder.py > out.log
+          python -u tmp.py > out2.log
           sleep infinity
       env:
         - name: HF_HOME

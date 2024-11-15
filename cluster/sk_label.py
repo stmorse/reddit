@@ -10,18 +10,19 @@ from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import davies_bouldin_score
 import joblib
 
-MODEL_PATH = '/sciclone/geograd/stmorse/reddit/'
+MODEL_PATH = '/sciclone/geograd/stmorse/reddit/td/'
 EMBED_PATH = '/sciclone/geograd/stmorse/reddit/embeddings/'
-LABEL_PATH = '/sciclone/geograd/stmorse/reddit/labels/'
+# LABEL_PATH = '/sciclone/geograd/stmorse/reddit/labels/'
+LABEL_PATH = '/sciclone/geograd/stmorse/reddit/td/labels/'
 CHUNK_SIZE = 1000000  # approx 125-250 Mb (?)
-LOAD_MODEL = 'mbkm_20_2007_2011_ckpt'
+LOAD_MODEL = 'mbkm_20_2011_td'
 N_CLUSTERS = 20
 N_SAMPLES  = 300000  # for score function, do over 3 random samples of this size
 
 # YEARS = [2007, 2008, 2009, 2010, 2011]
-# MONTHS = [f'{m:02}' for m in range(1,13)]
-YEARS = [2009]
-MONTHS = ['07']
+MONTHS = [f'{m:02}' for m in range(1,13)]
+YEARS = [2011]
+# MONTHS = ['07']
 
 def main():
     print(f'Starting prediction.  CPU: {joblib.cpu_count()}')
@@ -68,16 +69,16 @@ def main():
 
             # give a sense of score in this month
             # this won't necessarily converge but should generally go down (?)
-            print(f'> Scoring: ... ({time.time()-t0:.2f})')
-            for k in range(3):
-                idx = np.random.choice(L, size=min(N_SAMPLES, L), replace=False)
-                score = davies_bouldin_score(embeddings[idx], labels[idx])
-                print(f'> Iter {k}: {score}')
+            # print(f'> Scoring: ... ({time.time()-t0:.2f})')
+            # for k in range(3):
+            #     idx = np.random.choice(L, size=min(N_SAMPLES, L), replace=False)
+            #     score = davies_bouldin_score(embeddings[idx], labels[idx])
+            #     print(f'> Iter {k}: {score}')
     
-        # Save partially trained model checkpoint
-        # print(f'> Saving labels ... ({time.time()-t0:.2f})')
-        # with open(f'{LABEL_PATH}labels_{year}-{month}.npz', 'wb') as f:
-        #     np.savez_compressed(f, labels=labels, allow_pickle=False)
+        # Save labels
+        print(f'> Saving labels ... ({time.time()-t0:.2f})')
+        with open(f'{LABEL_PATH}labels_{year}-{month}.npz', 'wb') as f:
+            np.savez_compressed(f, labels=labels, allow_pickle=False)
 
 if __name__ == "__main__":
     main()
