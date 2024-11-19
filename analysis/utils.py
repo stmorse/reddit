@@ -100,6 +100,56 @@ def sample_cluster_sentences_and_embeddings(
     return sample_sentences, sample_embeddings
 
 
+def sample_cluster_embeddings(
+        coi,            # cluster of interest
+        sample_rate, 
+        years=[2007], 
+        months=['01'], 
+        base_path='/sciclone/geograd/stmorse/reddit/',
+        label_path='/sciclone/geograd/stmorse/reddit/',
+        seed=123
+    ):
+
+    # load sample of embeddings for cluster `coi` from across all files
+    sample_embeddings = []
+    t0 = time.time()
+    print(f'Loading ...')
+    for year, month in [(yr, mo) for yr in years for mo in months]:
+        # get indices of this label
+        labels = load_npz(label_path, year, month, 'labels')
+        idx = np.where(labels==coi)[0]
+        L = len(idx)
+        del labels
+
+        # load embeddings
+        embeddings = load_npz(base_path, year, month, 'embeddings')
+
+        print(f'> {year}-{month}: Sampling {int(sample_rate * L)} from {L} ... ({time.time()-t0:.2f})')
+
+        # get sample indices
+
+        # create RNG with seed
+        rng = np.random.default_rng(seed=seed)
+
+        # sample_idx is indices to idx (sorted)
+        sample_idx = rng.choice(L, size=int(sample_rate * L), replace=False)
+        sample_idx = np.sort(sample_idx)
+
+        embeddings = load_npz(base_path, year, month, 'embeddings')[idx[sample_idx]]
+        sample_embeddings.append(embeddings)
+        print(f'> Sampled (e: {embeddings.shape}) ({time.time()-t0:.2f})')
+        del embeddings
+
+        gc.collect()
+
+    sample_embeddings = np.vstack(sample_embeddings)
+    
+    print(f'COMPLETE: {sample_embeddings.shape}')
+
+    return sample_embeddings
+
+
+
 def sample_embeddings_and_labels(
         sample_rate,
         years=[2007],
@@ -155,3 +205,63 @@ def get_closest_vectors(query_vector, embeddings, top_k=10):
     distances = np.linalg.norm(embeddings - query_vector, axis=1)
     closest_points = np.argsort(distances)[:top_k]  # args to top distances
     return closest_points
+
+
+def get_clusters_for_term(
+        term,
+        top_k=2,
+        years=[2007],
+        month='03',   # will just check a given month as a hacky speedup
+        label_path='/sciclone/geograd/stmorse/reddit/',
+        data_path='/sciclone/data10/twford/reddit/reddit/comments/',
+        model_name='mbkm_cc_20_2007_2011'
+    ):
+
+    sel_clusters = []           # will hold cluster # corresponding to centroids
+    sel_counts = []             # will hold counts in that cluster (doc freq)
+    centroids = []              # will hold all centroids for these clusters
+    year_key = []               # keeps track of year corresponding to centroid
+
+    for year in years:
+        print(f'Processing {year} ...')
+
+        # grab indices of this term in a given year
+        with bz2.BZ2File(f'{data_path}RC_{year}-{month}.bz2', 'rb') as f:
+            idx = []
+            k = 0
+            for line in f:
+                entry = json.loads(line)
+                if 'body' not in entry or entry['author'] == '[deleted]':
+                    continue
+                
+                if term in entry['body']:
+                    idx.append(k)
+
+                k += 1
+
+        idx = np.array(idx)
+        print(idx.shape)
+
+        # grab labels for this term
+        labs = load_npz(label_path, year, month, 'labels')
+
+        # look at cluster (aka document) frequency
+        cluster, count = np.unique(labs[idx], return_counts=True)
+        top_c_idx = np.argsort(count)[::-1][:top_k]
+        # print(f'All: {[(cl, co) for cl, co in zip(cluster, count)]}')
+        print(f'Top: ', cluster[top_c_idx], count[top_c_idx])
+        sel_clusters.append(cluster[top_c_idx])
+        sel_counts.append(count[top_c_idx])
+
+        # grab centroids corresponding to these top clusters
+        cluster_centers = load_cc(model_name, base_path=label_path)
+        for i in range(top_k):
+            t = cluster[top_c_idx[i]]
+            centroids.append(cluster_centers[t])
+            year_key.append(year)
+
+    centroids = np.vstack(centroids)
+    sel_counts = np.vstack(sel_counts)
+    sel_clusters = np.vstack(sel_clusters)
+
+    return centroids, sel_counts, sel_clusters, year_key
