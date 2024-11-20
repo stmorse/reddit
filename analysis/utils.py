@@ -7,6 +7,17 @@ import gc
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+from scipy.cluster.hierarchy import dendrogram
+
+def load_sentences_bz2(path, year, month):
+    sentences = []
+    with bz2.BZ2File(f'{path}RC_{year}-{month}.bz2', 'rb') as f:
+        for line in f:
+            entry = json.loads(line)
+            if 'body' not in entry or entry['author']=='[deleted]':
+                continue
+            sentences.append(entry['body'])
+    return sentences
 
 # load random sample from file given ids
 def load_sample_from_file(path, year, month, ids):
@@ -99,7 +110,6 @@ def sample_cluster_sentences_and_embeddings(
 
     return sample_sentences, sample_embeddings
 
-
 def sample_cluster_embeddings(
         coi,            # cluster of interest
         sample_rate, 
@@ -112,6 +122,7 @@ def sample_cluster_embeddings(
 
     # load sample of embeddings for cluster `coi` from across all files
     sample_embeddings = []
+    sample_indices = []
     t0 = time.time()
     print(f'Loading ...')
     for year, month in [(yr, mo) for yr in years for mo in months]:
@@ -137,18 +148,18 @@ def sample_cluster_embeddings(
 
         embeddings = load_npz(base_path, year, month, 'embeddings')[idx[sample_idx]]
         sample_embeddings.append(embeddings)
+        sample_indices.append(idx[sample_idx])
         print(f'> Sampled (e: {embeddings.shape}) ({time.time()-t0:.2f})')
         del embeddings
 
         gc.collect()
 
     sample_embeddings = np.vstack(sample_embeddings)
+    sample_indices = np.concatenate(sample_indices)
     
-    print(f'COMPLETE: {sample_embeddings.shape}')
+    print(f'COMPLETE: {sample_embeddings.shape}, {sample_indices.shape}')
 
-    return sample_embeddings
-
-
+    return sample_embeddings, sample_indices
 
 def sample_embeddings_and_labels(
         sample_rate,
@@ -200,12 +211,10 @@ def sample_embeddings_and_labels(
 
     return sample_embeddings, sample_labels
 
-
 def get_closest_vectors(query_vector, embeddings, top_k=10):
     distances = np.linalg.norm(embeddings - query_vector, axis=1)
     closest_points = np.argsort(distances)[:top_k]  # args to top distances
     return closest_points
-
 
 def get_clusters_for_term(
         term,
@@ -265,3 +274,26 @@ def get_clusters_for_term(
     sel_clusters = np.vstack(sel_clusters)
 
     return centroids, sel_counts, sel_clusters, year_key
+
+def plot_dendrogram(model, **kwargs):
+    # Create linkage matrix and then plot the dendrogram
+
+    # create the counts of samples under each node
+    counts = np.zeros(model.children_.shape[0])
+    n_samples = len(model.labels_)
+    for i, merge in enumerate(model.children_):
+        current_count = 0
+        for child_idx in merge:
+            if child_idx < n_samples:
+                current_count += 1  # leaf node
+            else:
+                current_count += counts[child_idx - n_samples]
+        counts[i] = current_count
+
+    linkage_matrix = np.column_stack(
+        [model.children_, model.distances_, counts]
+    ).astype(float)
+
+    # Plot the corresponding dendrogram
+    dendrogram(linkage_matrix, **kwargs)
+
