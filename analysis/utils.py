@@ -216,6 +216,11 @@ def get_closest_vectors(query_vector, embeddings, top_k=10):
     closest_points = np.argsort(distances)[:top_k]  # args to top distances
     return closest_points
 
+def get_closest_vectors_from_subset(query_vector, embeddings, idx, top_k=10):
+    distances = np.linalg.norm(embeddings[idx] - query_vector, axis=1)
+    closest_points = np.argsort(distances)[:top_k]  # args to top distances
+    return idx[closest_points]
+
 def get_clusters_for_term(
         term,
         top_k=2,
