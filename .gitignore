@@ -3,3 +3,5 @@
 *.ini
 tmp/*
 __pycache__
+results
+final_model

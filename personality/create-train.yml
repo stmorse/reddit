@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ptrainer
+spec:
+  securityContext:
+    runAsUser: 270999
+    runAsGroup: 1132
+  containers:
+    - name: ptrainer-pod
+      image: docker.io/stmorse314/transformers-torch:latest
+      resources:
+        requests:
+          memory: '128Gi'
+          nvidia.com/gpu: '2'
+        limits:
+          memory: '128Gi'
+          nvidia.com/gpu: '2'
+      command: ['/bin/sh']
+      args:
+        - '-c'
+        - |
+          echo "Running container..."
+          cd /sciclone/home/stmorse/projects/reddit/personality
+          python -u train.py > out.log
+          sleep infinity
+      env:
+        - name: HF_HOME
+          value: '/sciclone/home/stmorse/.cache/huggingface/hub'
+      volumeMounts:
+        - name: home
+          mountPath: /sciclone/home/stmorse
+        - name: results
+          mountPath: /sciclone/geograd/stmorse
+  volumes:
+    - name: home
+      nfs:
+        server: 128.239.56.166
+        path: /sciclone/home/stmorse
+    - name: results
+      nfs:
+        server: 128.239.59.144
+        path: /sciclone/geograd/stmorse
