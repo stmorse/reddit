@@ -12,18 +12,17 @@ spec:
       resources:
         requests:
           memory: '128Gi'
-          nvidia.com/gpu: '2'
+          nvidia.com/gpu: '1'
         limits:
           memory: '128Gi'
-          nvidia.com/gpu: '2'
+          nvidia.com/gpu: '1'
       command: ['/bin/sh']
       args:
         - '-c'
         - |
           echo "Running container..."
-          cd /sciclone/home/stmorse/projects/reddit/embed
+          # cd /sciclone/home/stmorse/projects/reddit/embed
           # python -u mp_embedder.py > out.log
-          python -u tmp.py > out2.log
           sleep infinity
       env:
         - name: HF_HOME
